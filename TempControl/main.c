@@ -7,73 +7,59 @@
 #define F_CPU 16000000
 #include <avr/io.h>
 #include <util/delay.h>
+#include "nextion_display.h"
 #include "ds18b20.h"
 #include "usart.h"
 
-void send_ffffff();
-void out_number(char *component, uint16_t number);
-void print_string(char *string);
-void print_dec(uint16_t data);
+//void send_ffffff();
 usart_t display_usart;
 usart_t pc_usart;
-uint8_t test[3] = {0xFF,0xAA,0xEA};
-	
+//uint8_t test[3] = {0xFF,0xAA,0xEA};
+menu_t menu = {0};
+ds18b20_t sensor;
 int main(void)
 {
 	DDRD = 0xFF;
-	ds18b20_t sensor = {0};
+	PORTD = 0x0F;
+	uint8_t count = 0;
 	display_usart = usart_create(1,9600,128);
-	
 	pc_usart = usart_create(0,9600,128);
+	nextion_display_init(&display_usart);
+	menu = nextion_display_create_menu(1);
+	nextion_display_add_page(&menu,2);
+	nextion_display_add_element(&menu.pages[0],"n0.val=");
+	nextion_display_add_element(&menu.pages[0],"n1.val=");
 	asm("sei");
 	while (1)
 	{
-		//device_state state = get_temperature(&sensor);
-		//out_number("n0.val", sensor.temperature>>4);
-		//PORTD = (sensor.temperature>>4);
-		//print_string("hello", sizeof("hello"));
 		
-		usart_write(display_usart, test, 3);
-		_delay_ms(2000);
+		device_state state = get_temperature(&sensor);
+		//PORTD = sensor.temperature>>4;
+		uint16_t value = sensor.temperature;
+		PORTD = count;
+		uint8_t frac = value & 0x000F;		 
+		float temp = (float)frac;
+		temp /=16.0f;
+		temp*=100.0;
+		frac = (uint8_t)temp;
+		
+		menu.pages[0].items[0].value = value>>4;
+		menu.pages[0].items[1].value = frac;
+		//PORTD = menu.pages[0].items[0].value;
+		nextion_display_refresh(&menu);	
+		count++;
+		_delay_ms(500);
 	}
 }
 
+//void print_line(const char *line, const uint8_t length){
+	//usart_write(display_usart, line, length);
+//}
 
-void out_number(char *component, uint16_t number){
-	print_string(component);
-	print_string("=");
-	print_dec(number);
-	send_ffffff();
-}
 
-void print_dec(uint16_t data)
-{
-	//uint8_t num;
-	//for(num=0; data>=10000;num++) data-=10000;
-	//usart_write(display_usart, num+'0', sizeof(uint8_t));
-	//for(num=0; data>=1000;num++) data-=1000;
-	//usart_write(display_usart, num+'0', sizeof(uint8_t));
-	//for(num=0; data>=100;num++) data-=100;
-	//usart_write(display_usart, num+'0', sizeof(uint8_t));
-	//for(num=0; data>=10;num++) data-=10;
-	//usart_write(display_usart, num+'0', sizeof(uint8_t));
-	//usart_write(display_usart, data+'0', sizeof(uint8_t));
-}
 
-void print_string(char *string)
-{
-	
-	//while(*string) {
-		//usart_write(display_usart, string, len);
-	//	string++;
-	//}
-}
-
-static uint8_t var = 0xFF;
-void send_ffffff()
-{
-	
-	usart_write(display_usart,&var,sizeof(uint8_t));
-	usart_write(display_usart,&var,sizeof(uint8_t));
-	usart_write(display_usart,&var,sizeof(uint8_t));
-}
+//void send_ffffff()
+//{
+	//uint32_t var = 0xFFFFFF;
+	//usart_write(display_usart,&var,3);
+//}

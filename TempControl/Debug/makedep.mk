@@ -10,6 +10,8 @@ ds18b20.c
 
 main.c
 
+nextion_display.c
+
 one_wire.c
 
 usart.c

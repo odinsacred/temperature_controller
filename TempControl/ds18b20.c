@@ -31,7 +31,6 @@
 #define CONDITIONAL_SEARCH 0xEC // условный поиск - только с устройствами, которые находятся в сигнальном состоянии
 
 uint8_t memory[9];
-//static uint16_t t = 0;
 
 device_state get_temperature(ds18b20_t *sensor)
 {
@@ -62,8 +61,6 @@ device_state get_temperature(ds18b20_t *sensor)
 				sensor->high_level_temp = memory[2];
 				sensor->low_level_temp = memory[3];
 				sensor->config = memory[4];
-				//t>>=4;
-				//return(t);
 			}else{
 				state = CRC_ERROR;
 			}

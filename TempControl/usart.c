@@ -105,12 +105,12 @@ void usart_read(usart_t port, void *data, size_t length)
 	}
 }
 
-#define XTAL 16000000
+#define XTAL 16000000UL
 #define HI(x) ((x)>>8)
 #define LO(x) ((x)&0xFF)
 
 static void usart_0_init(uint16_t baud){
-	long bauddivider = XTAL/(16*baud)-1;
+	long bauddivider = XTAL/(16UL*baud)-1;
 	UBRR0L = LO(bauddivider);
 	UBRR0H = HI(bauddivider);
 	UCSR0A = 0;
@@ -120,7 +120,7 @@ static void usart_0_init(uint16_t baud){
 }
 
 static void usart_1_init(uint16_t baud){
-	long bauddivider = XTAL/(16*baud)-1;
+	uint16_t bauddivider = (XTAL/(16UL*baud))-1;
 	UBRR1L = LO(bauddivider);
 	UBRR1H = HI(bauddivider);
 	UCSR1A = 0;
