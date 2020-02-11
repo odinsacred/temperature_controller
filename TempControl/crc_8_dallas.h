@@ -10,7 +10,7 @@
 #define crc_8_H_
 #include <stdint.h>
 
-uint8_t crc_8_checkSum(uint8_t* data, uint8_t length);
+uint8_t crc_8_checkSum(void* data, uint8_t length);
 
 
 #endif /* crc8_H_ */

@@ -2,6 +2,8 @@
 # Automatically-generated file. Do not edit or delete the file
 ################################################################################
 
+binary_search.c
+
 buffer.c
 
 crc_8_dallas.c

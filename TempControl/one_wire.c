@@ -84,6 +84,23 @@ uint8_t read_byte()
 	return data;
 }
 
+uint8_t read_bit(){
+	uint8_t data = 0;
+	SET_IOPIN_TO_OUT;
+	PULL_DOWN_IOPIN;
+	_delay_us(3);
+	PULL_UP_IOPIN;
+	SET_IOPIN_TO_IN;
+	_delay_us(12);	
+	if(GET_IOPIN_STATE)
+	{
+		data|=0x01;
+	}
+	SET_IOPIN_TO_OUT;
+	PULL_UP_IOPIN;
+	_delay_us(75);	
+	return data;
+}
 
 void write_0(){
 	SET_IOPIN_TO_OUT;

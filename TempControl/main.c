@@ -33,7 +33,7 @@ int main(void)
 	while (1)
 	{
 		
-		device_state state = get_temperature(&sensor);
+		device_state state = ds18b20_get_temperature(&sensor);
 		//PORTD = sensor.temperature>>4;
 		uint16_t value = sensor.temperature;
 		PORTD = count;

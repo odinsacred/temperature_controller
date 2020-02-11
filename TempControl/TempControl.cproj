@@ -149,6 +149,12 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="binary_search.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="binary_search.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="buffer.c">
       <SubType>compile</SubType>
     </Compile>

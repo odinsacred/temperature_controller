@@ -22,12 +22,16 @@ typedef enum
 	DEVICE_MISSED,
 	DEVICE_OK,
 	DEVICE_SHORT,
-	CRC_ERROR
+	CRC_ERROR,
+	LAST_DEVICE,
+	FAULT,
+	DEVICE_FOUND
 }device_state;
 	
 device_state one_wire_reset();
 void write_byte(uint8_t data);
 uint8_t read_byte();
-
-
+uint8_t read_bit();
+void write_1();
+void write_0();
 #endif /* ONE_WIRE_H_ */
