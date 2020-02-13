@@ -50,9 +50,9 @@ void nextion_display_init(usart_t *usart)
 void nextion_display_refresh(menu_t *menu)
 {
 	char *value=NULL;
-	for(uint8_t i = 0; i<menu->page_count; i++)
+	for(uint8_t i = 0; i < menu->page_count; i++)
 	{
-		for(uint8_t j = 0;j<menu->pages[i].item_count; j++)
+		for(uint8_t j = 0; j<menu->pages[i].item_count; j++)
 		{
 			value = calloc(3, sizeof(uint8_t));
 			if(menu->pages[i].items[j].value>=0)
@@ -62,6 +62,7 @@ void nextion_display_refresh(menu_t *menu)
 			usart_write(_usart, menu->pages[i].items[j].string_id, strlen(menu->pages[i].items[j].string_id));
 			usart_write(_usart, value, strlen(value));
 			send_ffffff();
+			free(value);
 		}
 	}
 }

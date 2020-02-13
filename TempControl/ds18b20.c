@@ -8,8 +8,13 @@
 
 #define F_CPU 16000000
 #include <util/delay.h>
+#include <avr/io.h>
 #include "crc_8_dallas.h"
 #include "ds18b20.h"
+#include "utils.h"
+
+#define TRUE 1
+#define FALSE 0
 
 // Команды сетевого уровня
 #define SKIP_ROM        0xCC // для того, чтобы работать сразу со всеми датчиками
@@ -30,101 +35,157 @@
 #define NORMAL_SEARCH 0xF0 // нормальный поиск - с участием всех устройств
 #define CONDITIONAL_SEARCH 0xEC // условный поиск - только с устройствами, которые находятся в сигнальном состоянии
 
-uint8_t memory[9];
+uint8_t scratchpad[9];
+uint8_t ROM_NO[8];//8
 
-struct
-{
-	uint64_t rom;				// очередной найденный ROM
-	uint8_t slave_bit: 1;		// очередной бит
-	uint8_t inv_slave_bit: 1;	// инверсный бит
-	uint8_t last_dev: 1;		// найден последний девайс
-	uint8_t master_bit: 1;		// ответ от мастера - дальнейшее направление поиска
-	uint8_t: 4;
-	uint8_t step;				// шаг поиска (бит какого разряда мы ищем)
-	uint8_t last_fork;			// уровень, на котором расположена последняя развилка, из которой мы поворачивали влево при предыдущем проходе по дереву (в этот раз на ней нужно повернуть направо);
-	uint8_t last_family_fork;	// здесь хранится уровень последней развилки, относящейся к семейству устройств (младший байт ROM)
-	int8_t zero_fork;			// сюда пишем уровни всех развилок, в которых мастер при текущем проходе по дереву отвечал нулём (поворачивал налево), в конце прохода отсюда мы узнаем уровень последней такой развилки.
-}bin_search_info;
+uint8_t last_discrepancy;
+uint8_t last_family_discrepancy;
+uint8_t last_dev_flag;
+uint8_t crc8;
 
+void rom_code_to_64bit(uint64_t *value);
 void send_master_bit();
-
-
-device_state ds18b20_search_device(ds18b20_t *sensor){
+void reset_search();
+device_state ds18b20_read_rom(ds18b20_t *sensor){
 	device_state state = one_wire_reset();
 	if(state != DEVICE_OK)
 	return state;
-	if(bin_search_info.last_dev != 0)
-	return LAST_DEVICE;
-	bin_search_info.zero_fork = -1;
-	bin_search_info.step = 0;
-	write_byte(SEARCH_ROM);
-	while(bin_search_info.step<64)
+	write_byte(READ_ROM);
+	for(uint8_t i=0; i<7; i++)
+	{		
+		sensor->rom_code |= read_byte();
+		sensor->rom_code<<=8;
+	}
+	sensor->rom_code |= read_byte();
+	return state;
+}
+
+
+device_state ds18b20_search_device(ds18b20_t *sensor)
+{
+	int8_t id_bit_number;
+	int8_t last_zero, rom_byte_number;
+	device_state search_result;
+	int8_t id_bit, cmp_id_bit;
+	uint8_t rom_byte_mask, search_direction;
+	// initialize for search
+	id_bit_number = 1;
+	last_zero = 0;
+	rom_byte_number = 0;
+	rom_byte_mask = 1;
+	search_result = DEVICE_MISSED;
+	crc8 = 0;
+	last_zero = 0;
+	id_bit_number = 0;
+	
+
+	if (!last_dev_flag)
 	{
-		bin_search_info.slave_bit = read_bit(); // возможно тут надо if
-		bin_search_info.inv_slave_bit = read_bit();
-		if(bin_search_info.slave_bit == bin_search_info.inv_slave_bit)
+		search_result = one_wire_reset();
+		if(search_result != DEVICE_OK)
 		{
-			if(bin_search_info.slave_bit != 0)
+			// reset the search
+			last_discrepancy = 0;
+			last_dev_flag = FALSE;
+			last_family_discrepancy = 0;
+			return search_result;
+		}
+		
+		write_byte(SEARCH_ROM);
+		do
+		{
+			id_bit = read_bit()>>7;
+			cmp_id_bit = read_bit()>>7;
+			if((id_bit == 1) && (cmp_id_bit==1))
 			{
-				//это ошибка
-				return FAULT;
-			}
-			// Это развилка
-			if(bin_search_info.step == bin_search_info.last_fork)
-			{
-				bin_search_info.master_bit = 1;
-				send_master_bit();
+				search_result = FAULT;
+				break;
 			}
 			else
 			{
-				if(bin_search_info.step>bin_search_info.last_fork)
+				// all devices coupled have 0 or 1
+				if(id_bit != cmp_id_bit)
 				{
-					// в этой развилке мы еще не были - идем влево
-					bin_search_info.master_bit = 0;
+					search_direction = id_bit;
 				}
 				else
 				{
-					// развилка нам пока не интересна
-					bin_search_info.master_bit = (bin_search_info.rom >> bin_search_info.step) & 0x1;
-				}
-				if(bin_search_info.master_bit == 0)
-				{
-					// Запомнили развилку в которой поворачивали налево
-					bin_search_info.zero_fork = bin_search_info.step;
-					if(bin_search_info.step<8)
+					// if this discrepancy if before the Last Discrepancy
+					// on a previous next then pick the same as last time
+					if(id_bit_number < last_discrepancy)
 					{
-						bin_search_info.last_family_fork = bin_search_info.step;
+						search_direction = ((ROM_NO[rom_byte_number] & rom_byte_mask) > 0);
 					}
-					send_master_bit();
+					else
+					{
+						// if equal to last pick 1, if not then pick 0
+						search_direction = (id_bit_number == last_discrepancy);
+					}
+					// if 0 was picked then record its position in LastZero
+					if(search_direction == 0)
+					{
+						last_zero = id_bit_number;
+						// check for Last discrepancy in family
+						if (last_zero < 9)
+						{
+							last_family_discrepancy = last_zero;
+						}
+					}
+				}
+				// set or clear the bit in the ROM byte rom_byte_number
+				// with mask rom_byte_mask
+				if (search_direction == 1)
+				{
+					ROM_NO[rom_byte_number] |= rom_byte_mask;
 				}
 				else
 				{
-					// повернули по развилке вправо
-					send_master_bit();
+					ROM_NO[rom_byte_number] &= ~rom_byte_mask;
+				}
+				
+				write_bit(search_direction);
+				// increment the byte counter id_bit_number
+				// and shift the mask rom_byte_mask
+				id_bit_number++;
+				rom_byte_mask <<= 1;
+				
+				// if the mask is 0 then go to new SerialNum byte rom_byte_number and reset mask
+				if (rom_byte_mask == 0)
+				{
+					
+					rom_byte_number++;
+					rom_byte_mask = 1;
 				}
 			}
+		}while (rom_byte_number < 8); // loop until through all ROM bytes 0-7
+		crc8 = crc_8_checkSum(ROM_NO,sizeof(ROM_NO));
+		if (!((id_bit_number < 64) || (crc8 != 0)))
+		{
+			// search successful so set LastDiscrepancy,LastDeviceFlag,search_result
+			last_discrepancy = last_zero;
+			// check for last device
+			if (last_discrepancy == 0)
+			{
+				last_dev_flag = TRUE;
+			}
+			// check for last family group
+			if (last_family_discrepancy == last_discrepancy)
+			{
+				last_family_discrepancy = 0;
+			}
+			rom_code_to_64bit(&sensor->rom_code);
+			search_result = DEVICE_FOUND;
 		}
-		else
-		{ // Это не развилка - продолжаем движение по дереву
-			bin_search_info.master_bit = bin_search_info.slave_bit;
-			send_master_bit();
-		}
 	}
-	
-	bin_search_info.last_fork = bin_search_info.zero_fork; // запоминаем последнюю развилку, где мы повернули налево
-	if(bin_search_info.last_fork<0)
+	// if no device found then reset counters so next 'search' will be like a first
+	if ((search_result!=DEVICE_FOUND) || !ROM_NO[0])
 	{
-		bin_search_info.last_dev = 1;
+		last_discrepancy = 0;
+		last_dev_flag = FALSE;
+		last_family_discrepancy = 0;
+		search_result = DEVICE_MISSED;
 	}
-	if(crc_8_checkSum(&bin_search_info.rom, sizeof(bin_search_info.rom))==0)
-	{
-		sensor->rom_code = bin_search_info.rom;
-		return DEVICE_FOUND;
-	}
-	else
-	{
-		return CRC_ERROR;
-	}
+	return search_result;
 }
 
 device_state ds18b20_get_temperature(ds18b20_t *sensor)
@@ -132,30 +193,45 @@ device_state ds18b20_get_temperature(ds18b20_t *sensor)
 	device_state state = one_wire_reset();
 	if(state == DEVICE_OK)
 	{
-		write_byte(SKIP_ROM);
+		write_byte(MATCH_ROM);
+		//uint8_t crc8 = crc_8_checkSum(&sensor->rom_code,sizeof(uint64_t));
+		//write_byte(crc8);
+		//DDRC = 0xFF;
+		//PORTC = ((sensor->rom_code<<56) & 0xFF00000000000000)>>56;
+		for(uint8_t i=0; i<64;i+=8)
+		{
+			uint8_t byte = ((sensor->rom_code<<i) & 0xFF00000000000000)>>56;
+			write_byte(byte);
+		}	
+	
 		write_byte(TEMP_MEASURE);
 		_delay_us(750);
 		state = one_wire_reset();
 		if(state == DEVICE_OK)
 		{
-			write_byte(SKIP_ROM);
+			write_byte(MATCH_ROM);
+			for(uint8_t i=0; i<64;i+=8)
+			{
+				uint8_t byte = ((sensor->rom_code<<i) & 0xFF00000000000000)>>56;
+				write_byte(byte);
+			}
 			write_byte(READ_SCRATCHPAD);
-			memory[0] = read_byte();
-			memory[1] = read_byte();
-			memory[2] = read_byte();
-			memory[3] = read_byte();
-			memory[4] = read_byte();
-			memory[5] = read_byte();
-			memory[6] = read_byte();
-			memory[7] = read_byte();
-			memory[8] = read_byte();
-			if(crc_8_checkSum(memory,9)==0){
-				sensor->temperature = memory[1];
+			scratchpad[0] = read_byte();
+			scratchpad[1] = read_byte();
+			scratchpad[2] = read_byte();
+			scratchpad[3] = read_byte();
+			scratchpad[4] = read_byte();
+			scratchpad[5] = read_byte();
+			scratchpad[6] = read_byte();
+			scratchpad[7] = read_byte();
+			scratchpad[8] = read_byte();
+			if(crc_8_checkSum(scratchpad,sizeof(scratchpad))==0){
+				sensor->temperature = scratchpad[1];
 				sensor->temperature <<= 8;
-				sensor->temperature = sensor->temperature|memory[0];
-				sensor->high_level_temp = memory[2];
-				sensor->low_level_temp = memory[3];
-				sensor->config = memory[4];
+				sensor->temperature = sensor->temperature|scratchpad[0];
+				sensor->high_level_temp = scratchpad[2];
+				sensor->low_level_temp = scratchpad[3];
+				sensor->config = scratchpad[4];
 				}else{
 				state = CRC_ERROR;
 			}
@@ -165,17 +241,11 @@ device_state ds18b20_get_temperature(ds18b20_t *sensor)
 	return(state);
 }
 
-// посылаем master_bit в шину
-void send_master_bit()
+void rom_code_to_64bit(uint64_t *value)
 {
-	if(bin_search_info.master_bit == 1){
-		bin_search_info.rom |= 0x8000000000000000;
-		write_1();
-	}
-	else
+	for(uint8_t i=0; i<8; i++)
 	{
-		write_0();
+		*value<<=8;
+		*value|=ROM_NO[i];		
 	}
-	bin_search_info.rom>>=1;
-	bin_search_info.step++;
 }

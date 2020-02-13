@@ -37,7 +37,7 @@ SUBDIRS :=
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS +=  \
-../binary_search.c \
+../utils.c \
 ../buffer.c \
 ../crc_8_dallas.c \
 ../ds18b20.c \
@@ -54,7 +54,7 @@ ASM_SRCS +=
 
 
 OBJS +=  \
-binary_search.o \
+utils.o \
 buffer.o \
 crc_8_dallas.o \
 ds18b20.o \
@@ -64,7 +64,7 @@ one_wire.o \
 usart.o
 
 OBJS_AS_ARGS +=  \
-binary_search.o \
+utils.o \
 buffer.o \
 crc_8_dallas.o \
 ds18b20.o \
@@ -74,7 +74,7 @@ one_wire.o \
 usart.o
 
 C_DEPS +=  \
-binary_search.d \
+utils.d \
 buffer.d \
 crc_8_dallas.d \
 ds18b20.d \
@@ -84,7 +84,7 @@ one_wire.d \
 usart.d
 
 C_DEPS_AS_ARGS +=  \
-binary_search.d \
+utils.d \
 buffer.d \
 crc_8_dallas.d \
 ds18b20.d \
@@ -107,7 +107,7 @@ LINKER_SCRIPT_DEP+=
 
 
 # AVR32/GNU C Compiler
-./binary_search.o: .././binary_search.c
+./utils.o: .././utils.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 5.4.0
 	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.3.300\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega162 -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.3.300\gcc\dev\atmega162" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 

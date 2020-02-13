@@ -64,21 +64,7 @@ uint8_t read_byte()
 		for(uint8_t i=8;i>0;--i)
 		{
 			data>>=1; // если эту строку пеенести в конец цикла - функция перестает работать
-			PULL_DOWN_IOPIN;
-			
-			_delay_us(3);
-			PULL_UP_IOPIN;
-			SET_IOPIN_TO_IN;
-			_delay_us(12);
-			
-			if(GET_IOPIN_STATE)
-			{
-				data|=0x80;
-			}
-			SET_IOPIN_TO_OUT;
-			PULL_UP_IOPIN;
-			_delay_us(75);
-			
+			data |= read_bit();
 		}
 	}
 	return data;
@@ -94,7 +80,7 @@ uint8_t read_bit(){
 	_delay_us(12);	
 	if(GET_IOPIN_STATE)
 	{
-		data|=0x01;
+		data|=0x80; //0x01
 	}
 	SET_IOPIN_TO_OUT;
 	PULL_UP_IOPIN;
@@ -117,4 +103,11 @@ void write_1(){
 	_delay_us(15);
 	PULL_UP_IOPIN;
 	_delay_us(47);
+}
+
+void write_bit(uint8_t data){
+	if(data>0)
+	write_1();
+	else
+	write_0();
 }

@@ -34,4 +34,5 @@ uint8_t read_byte();
 uint8_t read_bit();
 void write_1();
 void write_0();
+void write_bit(uint8_t data);
 #endif /* ONE_WIRE_H_ */

@@ -24,10 +24,11 @@ typedef struct _ds18b20_t
 	uint8_t high_level_temp;
 	uint8_t low_level_temp;
 	mode config;
+	device_state status;
 } ds18b20_t;
 
 void ds18b20_set_conversion_mode(uint8_t config); // настройка разрешающей способности датчика
 device_state ds18b20_get_temperature(ds18b20_t *sensor);
-
-
+device_state ds18b20_search_device(ds18b20_t *sensor);
+device_state ds18b20_read_rom(ds18b20_t *sensor);
 #endif /* DS18B20_H_ */
