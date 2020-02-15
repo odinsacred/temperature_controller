@@ -20,5 +20,5 @@ void usart_write(usart_t port, const void * data, size_t length);
 size_t usart_available_bytes(usart_t port);
 bool usart_rx_empty(usart_t port);
 void usart_read(usart_t port, void * data, size_t length);
-
+bool usart_tx_check(usart_t port);
 #endif /* USART_H_ */

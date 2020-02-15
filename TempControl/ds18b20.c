@@ -194,10 +194,6 @@ device_state ds18b20_get_temperature(ds18b20_t *sensor)
 	if(state == DEVICE_OK)
 	{
 		write_byte(MATCH_ROM);
-		//uint8_t crc8 = crc_8_checkSum(&sensor->rom_code,sizeof(uint64_t));
-		//write_byte(crc8);
-		//DDRC = 0xFF;
-		//PORTC = ((sensor->rom_code<<56) & 0xFF00000000000000)>>56;
 		for(uint8_t i=0; i<64;i+=8)
 		{
 			uint8_t byte = ((sensor->rom_code<<i) & 0xFF00000000000000)>>56;

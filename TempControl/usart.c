@@ -15,6 +15,7 @@
 
 struct _usart_t {
 	bool initilized;
+	bool transmitted;
 	uint8_t index;
 	buffer_t rx_buffer;
 	buffer_t tx_buffer;
@@ -28,8 +29,8 @@ static void usart_0_ensure_write();
 static void usart_1_ensure_write();
 
 static struct _usart_t usarts[USART_COUNT] = {
-	{ false, 0, NULL, NULL, &usart_0_init, &usart_0_ensure_write },
-	{ false, 1, NULL, NULL, &usart_1_init, &usart_1_ensure_write }
+	{ false,false, 0, NULL, NULL, &usart_0_init, &usart_0_ensure_write },
+	{ false,false, 1, NULL, NULL, &usart_1_init, &usart_1_ensure_write }
 };
 
 static usart_t USART_0 = &usarts[0];
@@ -69,6 +70,7 @@ void usart_write(usart_t usart, const void * data, size_t length)
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		buffer_write_bytes(usart->tx_buffer, data, length);
+		usart->transmitted = false;
 	}
 	usart->ensure_write();
 }
@@ -103,6 +105,11 @@ void usart_read(usart_t port, void *data, size_t length)
 	{
 		buffer_read_bytes(port->rx_buffer, data, length);
 	}
+}
+
+bool usart_tx_check(usart_t port)
+{
+	return port->transmitted;
 }
 
 #define XTAL 16000000UL
@@ -169,6 +176,10 @@ ISR(USART1_TXC_vect){
 	{
 		UDR1 = buffer_read(USART_1->tx_buffer);
 	}
+	else
+	{
+		USART_1->transmitted = true;
+	}
 }
 
 ISR(USART0_RXC_vect){
@@ -180,5 +191,9 @@ ISR(USART0_TXC_vect){
 	if(!buffer_is_empty(USART_0->tx_buffer))
 	{
 		 UDR0 = buffer_read(USART_0->tx_buffer);
+	}
+	else
+	{
+		USART_0->transmitted = true;
 	}
 }
