@@ -10,6 +10,9 @@
 #define NEXTION_DISPLAY_H_
 #include "usart.h"
 
+#define PAGES 1
+#define ITEMS 30
+
 enum
 {
 	INT_VALUE,
@@ -19,29 +22,29 @@ enum
 typedef struct _item_t
 {
 	int8_t value;
-	char *string_id;
+	const char *string_id;
 }item_t;
 
 
 typedef struct _page_t
 {
 	uint8_t item_count;
-	item_t *items[9];
+	item_t *items[ITEMS];
 }page_t;
 
 typedef struct _menu_t
 {
 	uint8_t page_count;
-	page_t *pages;
+	page_t *pages[PAGES];
 }menu_t;
 
 
-void nextion_display_create_menu(menu_t *menu, const uint8_t page_count);
-void nextion_display_create_page(page_t *page, const uint8_t item_count);
-void nextion_display_create_item(item_t *item, char *id);
+void nextion_display_create_menu(menu_t *menu);
+void nextion_display_create_page(page_t *page);
+void nextion_display_create_item(item_t *item, const char *id);
 
-uint8_t nextion_display_add_page(menu_t *menu, page_t page);
-uint8_t nextion_display_add_element(page_t *page, item_t *item);
+uint8_t nextion_display_add_page(menu_t *menu, page_t *page);
+uint8_t nextion_display_add_item(page_t *page, item_t *item);
 //void nextion_display_create_item(const element_t cur_temp, const element_t high, const element_t low, const element_t param);
 void nextion_display_init(usart_t *usart);
 void nextion_display_refresh(menu_t *menu);

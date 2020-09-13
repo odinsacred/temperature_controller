@@ -1,9 +1,10 @@
 /*
-* usart.c
-*
-* Created: 10.07.2019 21:03:47
-*  Author: MIK
-*/
+ * usart.c
+ *
+ * Created: 12.09.2020 21:08:36
+ *  Author: odins
+ */ 
+
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <stdlib.h>
@@ -15,7 +16,6 @@
 
 struct _usart_t {
 	bool initilized;
-	bool transmitted;
 	uint8_t index;
 	buffer_t rx_buffer;
 	buffer_t tx_buffer;
@@ -29,26 +29,32 @@ static void usart_0_ensure_write();
 static void usart_1_ensure_write();
 
 static struct _usart_t usarts[USART_COUNT] = {
-	{ false,false, 0, NULL, NULL, &usart_0_init, &usart_0_ensure_write },
-	{ false,false, 1, NULL, NULL, &usart_1_init, &usart_1_ensure_write }
+	{ false, 0, NULL, NULL, &usart_0_init, &usart_0_ensure_write, NULL},
+	{ false, 1, NULL, NULL, &usart_1_init, &usart_1_ensure_write, NULL}
 };
 
 static usart_t USART_0 = &usarts[0];
 static usart_t USART_1 = &usarts[1];
 
-usart_t usart_create(uint8_t index, uint16_t baud, size_t buffers_size) {
+
+usart_t usart_create(uint8_t index, uint16_t baud) {
 	assert(index < USART_COUNT);
-	
 	usart_t usart = &usarts[index];
 	
 	assert(!usart->initilized);
-	
-	usart->rx_buffer = buffer_create(buffers_size);
-	usart->tx_buffer = buffer_create(buffers_size);
+	switch(index){
+		case 0: 
+		usart->rx_buffer = buffer_create(0);
+		usart->tx_buffer = buffer_create(1);
+		break;
+		case 1: 
+		usart->rx_buffer = buffer_create(2);
+		usart->tx_buffer = buffer_create(3);
+		break;
+	}	
 	usart->index = index;
 	usart->init(baud);
 	usart->initilized = true;
-	
 	return usart;
 }
 
@@ -70,7 +76,7 @@ void usart_write(usart_t usart, const void * data, size_t length)
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		buffer_write_bytes(usart->tx_buffer, data, length);
-		usart->transmitted = false;
+
 	}
 	usart->ensure_write();
 }
@@ -107,10 +113,6 @@ void usart_read(usart_t port, void *data, size_t length)
 	}
 }
 
-bool usart_tx_check(usart_t port)
-{
-	return port->transmitted;
-}
 
 #define XTAL 16000000UL
 #define HI(x) ((x)>>8)
@@ -127,13 +129,12 @@ static void usart_0_init(uint16_t baud){
 }
 
 static void usart_1_init(uint16_t baud){
-	uint16_t bauddivider = (XTAL/(16UL*baud))-1;
+	long bauddivider = XTAL/(16UL*baud)-1;
 	UBRR1L = LO(bauddivider);
 	UBRR1H = HI(bauddivider);
-	UCSR1A = 0;
-	UCSR1B = 1<<RXEN1|1<<TXEN1|1<<RXCIE1|1<<TXCIE1;
-	/* Set frame format: 8data, 1stop bit */
-	UCSR1C = 1<<UCSZ10|1<<UCSZ11;
+	UCSR1B = (1<<RXEN1)|(1<<TXEN1)|(1<<RXCIE1)|(1<<TXCIE1);
+	UCSR1C = (1<<URSEL1)|1<<UCSZ10|1<<UCSZ11;
+	
 }
 
 #undef XTAL
@@ -145,8 +146,7 @@ static void usart_0_ensure_write()
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		if(buffer_is_empty(USART_0->tx_buffer))
-			return;
-		
+		return;
 		if(UCSR0A & (1<<UDRE0))
 		{
 			UDR0 = buffer_read(USART_0->tx_buffer);
@@ -159,7 +159,7 @@ static void usart_1_ensure_write()
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		if(buffer_is_empty(USART_1->tx_buffer))
-			return;
+		return;
 		if(UCSR1A & (1<<UDRE1))
 		{
 			UDR1 = buffer_read(USART_1->tx_buffer);
@@ -176,10 +176,6 @@ ISR(USART1_TXC_vect){
 	{
 		UDR1 = buffer_read(USART_1->tx_buffer);
 	}
-	else
-	{
-		USART_1->transmitted = true;
-	}
 }
 
 ISR(USART0_RXC_vect){
@@ -190,10 +186,7 @@ ISR(USART0_TXC_vect){
 
 	if(!buffer_is_empty(USART_0->tx_buffer))
 	{
-		 UDR0 = buffer_read(USART_0->tx_buffer);
-	}
-	else
-	{
-		USART_0->transmitted = true;
+		UDR0 = buffer_read(USART_0->tx_buffer);
 	}
 }
+

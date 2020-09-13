@@ -2,6 +2,8 @@
 # Automatically-generated file. Do not edit or delete the file
 ################################################################################
 
+assert.c
+
 utils.c
 
 buffer.c

@@ -46,13 +46,16 @@ uint8_t crc8;
 void rom_code_to_64bit(uint64_t *value);
 void send_master_bit();
 void reset_search();
+void read_scratchpad();
+void write_rom_code(uint64_t rom_code);
+
 device_state ds18b20_read_rom(ds18b20_t *sensor){
 	device_state state = one_wire_reset();
 	if(state != DEVICE_OK)
 	return state;
 	write_byte(READ_ROM);
 	for(uint8_t i=0; i<7; i++)
-	{		
+	{
 		sensor->rom_code |= read_byte();
 		sensor->rom_code<<=8;
 	}
@@ -193,34 +196,14 @@ device_state ds18b20_get_temperature(ds18b20_t *sensor)
 	device_state state = one_wire_reset();
 	if(state == DEVICE_OK)
 	{
-		write_byte(MATCH_ROM);
-		for(uint8_t i=0; i<64;i+=8)
-		{
-			uint8_t byte = ((sensor->rom_code<<i) & 0xFF00000000000000)>>56;
-			write_byte(byte);
-		}	
-	
+		write_rom_code(sensor->rom_code);
 		write_byte(TEMP_MEASURE);
 		_delay_us(750);
 		state = one_wire_reset();
 		if(state == DEVICE_OK)
 		{
-			write_byte(MATCH_ROM);
-			for(uint8_t i=0; i<64;i+=8)
-			{
-				uint8_t byte = ((sensor->rom_code<<i) & 0xFF00000000000000)>>56;
-				write_byte(byte);
-			}
-			write_byte(READ_SCRATCHPAD);
-			scratchpad[0] = read_byte();
-			scratchpad[1] = read_byte();
-			scratchpad[2] = read_byte();
-			scratchpad[3] = read_byte();
-			scratchpad[4] = read_byte();
-			scratchpad[5] = read_byte();
-			scratchpad[6] = read_byte();
-			scratchpad[7] = read_byte();
-			scratchpad[8] = read_byte();
+			write_rom_code(sensor->rom_code);
+			read_scratchpad();
 			if(crc_8_checkSum(scratchpad,sizeof(scratchpad))==0){
 				sensor->temperature = scratchpad[1];
 				sensor->temperature <<= 8;
@@ -228,13 +211,14 @@ device_state ds18b20_get_temperature(ds18b20_t *sensor)
 				sensor->high_level_temp = scratchpad[2];
 				sensor->low_level_temp = scratchpad[3];
 				sensor->config = scratchpad[4];
-				}else{
+			}
+			else{
 				state = CRC_ERROR;
 			}
 		}
 		
 	}
-	return(state);
+	return state;
 }
 
 void rom_code_to_64bit(uint64_t *value)
@@ -242,6 +226,28 @@ void rom_code_to_64bit(uint64_t *value)
 	for(uint8_t i=0; i<8; i++)
 	{
 		*value<<=8;
-		*value|=ROM_NO[i];		
+		*value|=ROM_NO[i];
+	}
+}
+
+void read_scratchpad(){
+	write_byte(READ_SCRATCHPAD);
+	scratchpad[0] = read_byte();
+	scratchpad[1] = read_byte();
+	scratchpad[2] = read_byte();
+	scratchpad[3] = read_byte();
+	scratchpad[4] = read_byte();
+	scratchpad[5] = read_byte();
+	scratchpad[6] = read_byte();
+	scratchpad[7] = read_byte();
+	scratchpad[8] = read_byte();
+}
+
+void write_rom_code(uint64_t rom_code){
+	write_byte(MATCH_ROM);
+	for(uint8_t i=0; i<64;i+=8)
+	{
+		uint8_t byte = ((rom_code<<i) & 0xFF00000000000000)>>56;
+		write_byte(byte);
 	}
 }

@@ -5,36 +5,39 @@
 *  Author: MIK
 */
 #include <stdlib.h>
-//#include "debug.h"
 #include "buffer.h"
+#include "assert.h"
 
 struct _buffer_t {
 	size_t tail;
 	size_t head;
 	size_t size;
-	uint8_t * bytes;
+	uint8_t bytes[MAX_BUFFER_SIZE];
 };
 
-buffer_t buffer_create(size_t size)
+struct _buffer_t buffers[BUFFER_COUNT] = 
 {
-	buffer_t buffer = calloc(1, sizeof(struct _buffer_t));
-	buffer->bytes = calloc(1, size);
-	buffer->size = size;
-	
-	return buffer;
+    {0,0,MAX_BUFFER_SIZE,{0}},{0,0,MAX_BUFFER_SIZE,{0}},{0,0,MAX_BUFFER_SIZE,{0}},{0,0,MAX_BUFFER_SIZE,{0}}
+};
+
+buffer_t buffer_create(uint8_t index)
+{
+    assert(index<BUFFER_COUNT,1);
+	return &buffers[index];
 }
 
 void buffer_write(buffer_t buffer, uint8_t value)
 {
-	//debug_assert(buffer->tail != (buffer->head - 1 + buffer->size) % buffer->size, "buffer full");
+	assert(buffer->tail != (buffer->head - 1 + buffer->size) % buffer->size,2);
 			
 	buffer->bytes[buffer->tail] = value;
-	buffer->tail = (buffer->tail + 1) % buffer->size;
+    buffer->tail++;
+    buffer->tail &= MAX_BUFFER_SIZE - 1;
 }
 
 void buffer_write_bytes(buffer_t buffer, const void * data, size_t length)
 {
-	//debug_assert(length < buffer->size - buffer_count(buffer), "buffer to small");
+	assert(length < buffer->size - buffer_count(buffer),3);
 	uint8_t * bytes = (uint8_t *) data;
 	
 	for (size_t i = 0; i < length; i++, bytes++)
@@ -45,11 +48,13 @@ void buffer_write_bytes(buffer_t buffer, const void * data, size_t length)
 
 uint8_t buffer_read(buffer_t buffer)
 {
-	//debug_assert(buffer_count(buffer) > 0, "buffer is empty");
+	assert(buffer_count(buffer) > 0,4);
 	
 	uint8_t value = buffer->bytes[buffer->head];
-			
-	buffer->head = (buffer->head + 1) % buffer->size;
+
+	buffer->head++;
+    
+    buffer->head &= MAX_BUFFER_SIZE - 1;
 
 	return value;
 }
@@ -65,15 +70,15 @@ size_t buffer_count(buffer_t buffer)
 	return (buffer->size - buffer->head) + buffer->tail;
 }
 
-void buffer_read_bytes(buffer_t buffer, void * data, size_t count)
+void buffer_read_bytes(buffer_t buffer, void * data, uint8_t count)
 {
-	size_t available = buffer_count(buffer);
+	uint8_t available = buffer_count(buffer);
 
-	//assert(count <= available);
-
+	assert(count <= available,5);
+    
 	uint8_t * bytes = (uint8_t *) data;
-	count = available > count ? count : available;
 	
+	count = available > count ? count : available;
 	for (size_t i = 0; i < count; i++, bytes++)
 	{
 		*bytes = buffer_read(buffer);

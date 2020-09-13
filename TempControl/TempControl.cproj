@@ -149,6 +149,12 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="assert.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="assert.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="utils.c">
       <SubType>compile</SubType>
     </Compile>
