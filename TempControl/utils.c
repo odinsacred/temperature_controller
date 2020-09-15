@@ -19,3 +19,4 @@ uint64_t ntohl(uint64_t value){
 	}
 	return temp;
 }
+

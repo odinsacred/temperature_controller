@@ -16,7 +16,7 @@
 
 typedef struct _usart_t * usart_t;
 
-usart_t usart_create(uint8_t index, uint16_t baud);
+usart_t usart_create(uint8_t index, uint32_t baud);
 void usart_reset(usart_t usart);
 void usart_write(usart_t port, const void * data, size_t length);
 size_t usart_available_bytes(usart_t port);

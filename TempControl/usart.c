@@ -19,12 +19,12 @@ struct _usart_t {
 	uint8_t index;
 	buffer_t rx_buffer;
 	buffer_t tx_buffer;
-	void (*init)(uint16_t baud);
+	void (*init)(uint32_t baud);
 	void (*ensure_write)();
 };
 
-static void usart_0_init(uint16_t baud);
-static void usart_1_init(uint16_t baud);
+static void usart_0_init(uint32_t baud);
+static void usart_1_init(uint32_t baud);
 static void usart_0_ensure_write();
 static void usart_1_ensure_write();
 
@@ -37,7 +37,7 @@ static usart_t USART_0 = &usarts[0];
 static usart_t USART_1 = &usarts[1];
 
 
-usart_t usart_create(uint8_t index, uint16_t baud) {
+usart_t usart_create(uint8_t index, uint32_t baud) {
 	assert(index < USART_COUNT);
 	usart_t usart = &usarts[index];
 	
@@ -118,7 +118,7 @@ void usart_read(usart_t port, void *data, size_t length)
 #define HI(x) ((x)>>8)
 #define LO(x) ((x)&0xFF)
 
-static void usart_0_init(uint16_t baud){
+static void usart_0_init(uint32_t baud){
 	long bauddivider = XTAL/(16UL*baud)-1;
 	UBRR0L = LO(bauddivider);
 	UBRR0H = HI(bauddivider);
@@ -128,7 +128,7 @@ static void usart_0_init(uint16_t baud){
 	UCSR0C = 1<<UCSZ00|1<<UCSZ01;
 }
 
-static void usart_1_init(uint16_t baud){
+static void usart_1_init(uint32_t baud){
 	long bauddivider = XTAL/(16UL*baud)-1;
 	UBRR1L = LO(bauddivider);
 	UBRR1H = HI(bauddivider);

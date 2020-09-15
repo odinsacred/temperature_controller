@@ -4,6 +4,10 @@
 
 assert.c
 
+events.c
+
+hw.c
+
 utils.c
 
 buffer.c
