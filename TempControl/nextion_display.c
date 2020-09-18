@@ -28,9 +28,9 @@ void nextion_display_create_row(display_row *row, const char *whole_id,const cha
 }
 
 void nextion_display_refresh_row(display_row *row){
-	send_item(row->whole);
-	send_item(row->frac);
-	send_item(row->conn);
+	send_item(&row->whole);
+	send_item(&row->frac);
+	send_item(&row->conn);
 }
 
 void send_item(item_t *item){

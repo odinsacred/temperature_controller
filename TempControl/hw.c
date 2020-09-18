@@ -4,6 +4,9 @@
 * Created: 15.09.2020 20:27:29
 *  Author: odins
 */
+#define F_CPU 16000000
+#include <util/delay.h>
+#include <avr/io.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include "hw.h"
@@ -33,6 +36,8 @@ static void forget_selected_devices(void);
 static void ignored(void);
 static void wait_for_command(void);
 static void sensor_polling(void);
+static void refresh_sensor_data(ds18b20_t *sensor, display_row* row);
+static uint8_t get_frac(uint16_t *value);
 
 void (* const transition_table[STATE_MAX][EVENT_MAX])(void)={
 	[STATE_CONFIG][EV_NONE]=wait_for_command,
@@ -66,6 +71,7 @@ void hw_init(hw_device_t* device){
 	events_init(16);
 	_sensors = calloc(device->num_sensors, sizeof(ds18b20_t));
 	init_display_rows();
+	DDRC = 0b00000001;
 }
 
 void hw_run(void){
@@ -102,22 +108,24 @@ static void ignored(void){
 static void wait_for_command(void){
 	uint8_t cmd=0;
 	if(usart_available_bytes(display_usart)>=sizeof(cmd)){
+		PORTC = 0b00000001;
 		usart_read(display_usart,&cmd,sizeof(cmd));
 	}
 	events_put((event_t)cmd);
 }
 
 static void sensor_polling(void){
-	for(uint8_t i=0; i < _device_ptr.num_sensors; i++)
+	for(uint8_t i=0; i < _device_ptr->num_sensors; i++)
 	{
 		
 		if(_sensors[i].status == DEVICE_FOUND)
 		{
-			PORTC = 0b00000001;
+			
 			device_state state = ds18b20_get_temperature(&_sensors[i]);
 			if(state == DEVICE_OK)
 			{
 				refresh_sensor_data(&_sensors[i],&_rows[i]);
+				_delay_ms(100);
 			}
 		}
 	}
@@ -130,6 +138,7 @@ static void search_device(void){
 		if(state == DEVICE_OK)
 		{
 			_sensors[i].status = DEVICE_FOUND;
+			sensor_polling();
 		}
 	}
 	if(i < _device_ptr->num_sensors)
@@ -140,27 +149,30 @@ static void search_device(void){
 
 static void init_display_rows(void){
 	_rows = calloc(_device_ptr->num_sensors, sizeof(display_row));
-	nextion_display_create_row(_rows[0], "n0.val=","n1.val=","p0.pic=");
-	nextion_display_create_row(_rows[1], "n2.val=","n3.val=","p1.pic=");
-	nextion_display_create_row(_rows[2], "n4.val=","n5.val=","p2.pic=");
-	nextion_display_create_row(_rows[3], "n6.val=","n7.val=","p3.pic=");
-	nextion_display_create_row(_rows[4], "n8.val=","n9.val=","p4.pic=");
-	nextion_display_create_row(_rows[5], "n10.val=","n11.val=","p5.pic=");
-	nextion_display_create_row(_rows[6], "n12.val=","n13.val=","p6.pic=");
-	nextion_display_create_row(_rows[7], "n14.val=","n15.val=","p7.pic=");
-	nextion_display_create_row(_rows[8], "n16.val=","n17.val=","p8.pic=");
-	nextion_display_create_row(_rows[9], "n18.val=","n19.val=","p9.pic=");
+	nextion_display_create_row(&_rows[0], "n0.val=","n1.val=","p0.pic=");
+	nextion_display_create_row(&_rows[1], "n2.val=","n3.val=","p1.pic=");
+	nextion_display_create_row(&_rows[2], "n4.val=","n5.val=","p2.pic=");
+	nextion_display_create_row(&_rows[3], "n6.val=","n7.val=","p3.pic=");
+	nextion_display_create_row(&_rows[4], "n8.val=","n9.val=","p4.pic=");
+	nextion_display_create_row(&_rows[5], "n10.val=","n11.val=","p5.pic=");
+	nextion_display_create_row(&_rows[6], "n12.val=","n13.val=","p6.pic=");
+	nextion_display_create_row(&_rows[7], "n14.val=","n15.val=","p7.pic=");
+	nextion_display_create_row(&_rows[8], "n16.val=","n17.val=","p8.pic=");
+	nextion_display_create_row(&_rows[9], "n18.val=","n19.val=","p9.pic=");
 	
 }
-void refresh_sensor_data(ds18b20_t *sensor, display_row* row){
-	row->whole.value = sensor->temperature >> 4;
-	row->frac.value = get_frac(&sensor->temperature);
-	if(sensor->status == DEVICE_FOUND)
+
+static void refresh_sensor_data(ds18b20_t *sensor, display_row* row){
+	
+	if(sensor->status == DEVICE_FOUND){
+		row->whole.value = sensor->temperature >> 4;
+		row->frac.value = get_frac(&sensor->temperature);
 		row->conn.value = 1;
-	else
-		row->conn.value = 0;
+		nextion_display_refresh_row(row);
+	}
 }
-uint8_t get_frac(uint16_t *value)
+
+static uint8_t get_frac(uint16_t *value)
 {
 	uint8_t frac = *value & 0x000F;
 	float temp = (float)frac;
