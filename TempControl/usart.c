@@ -1,9 +1,9 @@
 /*
- * usart.c
- *
- * Created: 12.09.2020 21:08:36
- *  Author: odins
- */ 
+* usart.c
+*
+* Created: 12.09.2020 21:08:36
+*  Author: odins
+*/
 
 #include <avr/interrupt.h>
 #include <avr/io.h>
@@ -27,6 +27,8 @@ static void usart_0_init(uint32_t baud);
 static void usart_1_init(uint32_t baud);
 static void usart_0_ensure_write();
 static void usart_1_ensure_write();
+static void usart_1_flush(void);
+static void usart_0_flush(void);
 
 static struct _usart_t usarts[USART_COUNT] = {
 	{ false, 0, NULL, NULL, &usart_0_init, &usart_0_ensure_write, NULL},
@@ -43,15 +45,15 @@ usart_t usart_create(uint8_t index, uint32_t baud) {
 	
 	assert(!usart->initilized);
 	switch(index){
-		case 0: 
+		case 0:
 		usart->rx_buffer = buffer_create(0);
 		usart->tx_buffer = buffer_create(1);
 		break;
-		case 1: 
+		case 1:
 		usart->rx_buffer = buffer_create(2);
 		usart->tx_buffer = buffer_create(3);
 		break;
-	}	
+	}
 	usart->index = index;
 	usart->init(baud);
 	usart->initilized = true;
@@ -129,9 +131,10 @@ static void usart_0_init(uint32_t baud){
 }
 
 static void usart_1_init(uint32_t baud){
-	long bauddivider = XTAL/(16UL*baud)-1;
+	long bauddivider = XTAL/(8UL*baud)-1;
 	UBRR1L = LO(bauddivider);
 	UBRR1H = HI(bauddivider);
+	UCSR1A = 1<<U2X0;
 	UCSR1B = (1<<RXEN1)|(1<<TXEN1)|(1<<RXCIE1)|(1<<TXCIE1);
 	UCSR1C = (1<<URSEL1)|1<<UCSZ10|1<<UCSZ11;
 	
@@ -167,8 +170,16 @@ static void usart_1_ensure_write()
 	}
 }
 
+
+
 ISR(USART1_RXC_vect){
-	buffer_write(USART_1->rx_buffer, UDR1);
+	if((UCSR1A & (1<<FE1)) | (UCSR1A & (1<<DOR1)) | (UCSR1A & (1<<UPE1)) ){
+		usart_1_flush();
+	}
+	else{
+		buffer_write(USART_1->rx_buffer, UDR1);
+	}
+	
 }
 
 ISR(USART1_TXC_vect){
@@ -179,7 +190,12 @@ ISR(USART1_TXC_vect){
 }
 
 ISR(USART0_RXC_vect){
-	buffer_write(USART_0->rx_buffer, UDR0);
+	if((UCSR0A & (1<<FE0)) | (UCSR0A & (1<<DOR0)) | (UCSR0A & (1<<UPE0)) ){
+		usart_0_flush();
+		}
+		else{
+		buffer_write(USART_0->rx_buffer, UDR0);
+	}
 }
 
 ISR(USART0_TXC_vect){
@@ -190,3 +206,12 @@ ISR(USART0_TXC_vect){
 	}
 }
 
+static void usart_1_flush(void){
+	uint8_t dummy = 0;
+	while(UCSR1A & (1<<RXC1)) dummy = UDR1;
+}
+
+static void usart_0_flush(void){
+	uint8_t dummy;
+	while(UCSR0A & (1<<RXC0)) dummy = UDR0;
+}

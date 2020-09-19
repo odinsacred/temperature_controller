@@ -30,22 +30,27 @@ static void init_display_rows(void);
 static void device_run(void);
 static void device_config(void);
 static void search_device(void);
-static void save_founded_devices(void);
-static void select_device(void);
-static void forget_selected_devices(void);
+static void save_founded_device(void);
+static void forget_selected_device(void);
 static void ignored(void);
 static void wait_for_command(void);
 static void sensor_polling(void);
 static void refresh_sensor_data(ds18b20_t *sensor, display_row* row);
 static uint8_t get_frac(uint16_t *value);
 
+typedef struct {
+	uint8_t cmd;	
+	uint8_t sensor_id;
+	}cmd_t;
+
+cmd_t _recieved_cmd_id = {0};
+
 void (* const transition_table[STATE_MAX][EVENT_MAX])(void)={
 	[STATE_CONFIG][EV_NONE]=wait_for_command,
 	[STATE_CONFIG][EV_RUN_PRESSED]=device_run,
 	[STATE_CONFIG][EV_SEARCH_PRESSED]=search_device,
-	[STATE_CONFIG][EV_SAVE_PRESSED]=save_founded_devices,
-	[STATE_CONFIG][EV_DEVICE_SELECTED]=select_device,
-	[STATE_CONFIG][EV_FORGET_PRESSED]=forget_selected_devices,
+	[STATE_CONFIG][EV_SAVE_PRESSED]=save_founded_device,
+	[STATE_CONFIG][EV_FORGET_PRESSED]=forget_selected_device,
 	[STATE_CONFIG][EV_MODBUS_REQUEST_RECIEVED]=ignored,
 	[STATE_CONFIG][EV_ONE_WIRE_REQUEST_SENDED]=ignored,
 	[STATE_CONFIG][EV_ONE_WIRE_REQUEST_RECIEVED]=ignored,
@@ -54,7 +59,6 @@ void (* const transition_table[STATE_MAX][EVENT_MAX])(void)={
 	[STATE_RUN][EV_RUN_PRESSED]=device_config,
 	[STATE_RUN][EV_SEARCH_PRESSED]=ignored,
 	[STATE_RUN][EV_SAVE_PRESSED]=ignored,
-	[STATE_RUN][EV_DEVICE_SELECTED]=ignored,
 	[STATE_RUN][EV_FORGET_PRESSED]=ignored,
 	[STATE_RUN][EV_MODBUS_REQUEST_RECIEVED]=ignored,
 	[STATE_RUN][EV_ONE_WIRE_REQUEST_SENDED]=ignored,
@@ -89,15 +93,11 @@ static void device_config(void){
 	_state = STATE_CONFIG;
 }
 
-static void save_founded_devices(void){
+static void save_founded_device(void){
 	
 }
 
-static void select_device(void){
-	
-}
-
-static void forget_selected_devices(void){
+static void forget_selected_device(void){
 	
 }
 
@@ -106,12 +106,11 @@ static void ignored(void){
 }
 
 static void wait_for_command(void){
-	uint8_t cmd=0;
-	if(usart_available_bytes(display_usart)>=sizeof(cmd)){
-		PORTC = 0b00000001;
-		usart_read(display_usart,&cmd,sizeof(cmd));
+	if(usart_available_bytes(display_usart)>=sizeof(_recieved_cmd_id)){
+		usart_read(display_usart, &_recieved_cmd_id, sizeof(_recieved_cmd_id));
+		events_put((event_t)_recieved_cmd_id.cmd);		
 	}
-	events_put((event_t)cmd);
+	
 }
 
 static void sensor_polling(void){
@@ -132,19 +131,14 @@ static void sensor_polling(void){
 }
 
 static void search_device(void){
-	static uint8_t i=0;
-	if(_sensors[i].status != DEVICE_FOUND){
-		device_state state = ds18b20_read_rom(&_sensors[i]);
+	if(_sensors[_recieved_cmd_id.sensor_id].status != DEVICE_FOUND){
+		device_state state = ds18b20_read_rom(&_sensors[_recieved_cmd_id.sensor_id]);
 		if(state == DEVICE_OK)
 		{
-			_sensors[i].status = DEVICE_FOUND;
+			_sensors[_recieved_cmd_id.sensor_id].status = DEVICE_FOUND;
 			sensor_polling();
 		}
 	}
-	if(i < _device_ptr->num_sensors)
-	i++;
-	else
-	i=0;
 }
 
 static void init_display_rows(void){
