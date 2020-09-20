@@ -9,9 +9,9 @@
 #include <avr/io.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <util/atomic.h>
+#include "assert.h"
 #include "usart.h"
 
 struct _usart_t {
@@ -40,10 +40,10 @@ static usart_t USART_1 = &usarts[1];
 
 
 usart_t usart_create(uint8_t index, uint32_t baud) {
-	assert(index < USART_COUNT);
+	assert(index < USART_COUNT,1);
 	usart_t usart = &usarts[index];
 	
-	assert(!usart->initilized);
+	assert(!usart->initilized,2);
 	switch(index){
 		case 0:
 		usart->rx_buffer = buffer_create(0);
@@ -72,8 +72,7 @@ void usart_reset(usart_t usart)
 void usart_write(usart_t usart, const void * data, size_t length)
 {
 	
-	assert(length > 0);
-	
+	assert(length > 0,3);
 	// копируем все данные во внутренний буфер usart
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{

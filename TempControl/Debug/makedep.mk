@@ -8,6 +8,8 @@ events.c
 
 hw.c
 
+timer.c
+
 utils.c
 
 buffer.c

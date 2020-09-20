@@ -11,18 +11,20 @@
 #include <string.h>
 #include "assert.h"
 
+#define MAX_ITEMS 16
+
 static struct events_t
 {
 	size_t size;
 	size_t in;
 	size_t out;
-	event_t * items;
+	event_t items[MAX_ITEMS];
 } events = {0};
 
 void events_init(size_t size)
 {
-	events.size = size;
-	events.items = calloc(size, sizeof(event_t));
+	events.size = MAX_ITEMS;
+	//events.items = calloc(size, sizeof(event_t));
 }
 
 void events_put(event_t event)

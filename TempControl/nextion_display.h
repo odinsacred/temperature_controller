@@ -12,6 +12,7 @@
 
 #define PAGES 1
 #define ITEMS 30
+#define DEATHBAND 1
 
 enum
 {

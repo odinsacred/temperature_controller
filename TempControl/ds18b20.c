@@ -50,6 +50,7 @@ void read_scratchpad();
 void write_rom_code(uint64_t rom_code);
 
 device_state ds18b20_read_rom(ds18b20_t *sensor){
+	sensor->rom_code = 0;
 	device_state state = one_wire_reset();
 	if(state != DEVICE_OK)
 	return state;

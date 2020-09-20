@@ -24,10 +24,9 @@ void watchdog_off(void);
 int main(void)
 {
 	asm("cli");
-	_hw_device.display_baud = 115200;
+	_hw_device.display_baud = 19200;
 	_hw_device.modbus_address = 1;
 	_hw_device.modbus_baud = 9600;
-	_hw_device.num_sensors = 10;
 	watchdog_off();
 	_delay_ms(1000);
 	hw_init(&_hw_device);	

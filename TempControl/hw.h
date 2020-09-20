@@ -11,7 +11,6 @@
 
 typedef struct{
 	uint8_t modbus_address;
-	uint8_t num_sensors;
 	uint32_t display_baud;
 	uint32_t modbus_baud;
 }hw_device_t;
