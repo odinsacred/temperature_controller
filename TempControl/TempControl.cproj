@@ -167,6 +167,12 @@
     <Compile Include="hw.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="pc_connection.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="pc_connection.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="timer.c">
       <SubType>compile</SubType>
     </Compile>

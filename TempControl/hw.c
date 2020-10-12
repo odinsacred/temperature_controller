@@ -16,12 +16,14 @@
 #include "nextion_display.h"
 #include "events.h"
 #include "timer.h"
+#include "pc_connection.h"
 
 static const uint16_t SENSOR_POLL_TIMEOUT = 500;
 #define NUM_OF_SENSORS 10
 state_t _state = STATE_CONFIG;
 event_t _event = EV_NONE;
 timer_t sensor_poll_timer = 0;
+timer_t send_message_timer = 0;
 
 static hw_device_t* _device_ptr=NULL;
 static ds18b20_t _sensors[NUM_OF_SENSORS] = {0};
@@ -81,15 +83,19 @@ void hw_init(hw_device_t* device){
 	display_usart = usart_create(1,_device_ptr->display_baud);
 	pc_usart = usart_create(0,_device_ptr->modbus_baud);
 	nextion_display_init(&display_usart);
+	pc_connection_init(&pc_usart);
 	events_init(16);
 	init_display_rows();
 	timer_init();
 	sensor_poll_timer = timer_create();
+	send_message_timer = timer_create();
 	DDRC = 0b00001111;
 }
 
 void hw_run(void){
 	timer_stop(sensor_poll_timer);
+	timer_restart(send_message_timer, 1000);
+	uint8_t greatings[7] = "Hello!";
 	while(1){
 		
 		_event = events_get();
@@ -97,6 +103,11 @@ void hw_run(void){
 		if(timer_poll(sensor_poll_timer)){
 			events_put(EV_POLL_SENSOR);
 			timer_restart(sensor_poll_timer, SENSOR_POLL_TIMEOUT);
+		}
+		
+		if(timer_poll(send_message_timer)){
+			send_message(greatings, 7);
+			timer_restart(send_message_timer, 1000);
 		}
 	}
 }
@@ -178,16 +189,6 @@ static void init_display_rows(void){
 	nextion_display_create_row(&_rows[7], PSTR("n14.val="),PSTR("n15.val="),PSTR("p7.pic="));
 	nextion_display_create_row(&_rows[8], PSTR("n16.val="),PSTR("n17.val="),PSTR("p8.pic="));
 	nextion_display_create_row(&_rows[9], PSTR("n18.val="),PSTR("n19.val="),PSTR("p9.pic="));
-	//nextion_display_create_row(&_rows[0], (char*)pgm_read_ptr(n0_val_str),(char*)pgm_read_ptr(n1_val_str),(char*)pgm_read_ptr(p0_pic_str));
-	//nextion_display_create_row(&_rows[1], "n2.val=","n3.val=","p1.pic=");
-	//nextion_display_create_row(&_rows[2], "n4.val=","n5.val=","p2.pic=");
-	//nextion_display_create_row(&_rows[3], "n6.val=","n7.val=","p3.pic=");
-	//nextion_display_create_row(&_rows[4], "n8.val=","n9.val=","p4.pic=");
-	//nextion_display_create_row(&_rows[5], "n10.val=","n11.val=","p5.pic=");
-	//nextion_display_create_row(&_rows[6], "n12.val=","n13.val=","p6.pic=");
-	//nextion_display_create_row(&_rows[7], "n14.val=","n15.val=","p7.pic=");
-	//nextion_display_create_row(&_rows[8], "n16.val=","n17.val=","p8.pic=");
-	//nextion_display_create_row(&_rows[9], "n18.val=","n19.val=","p9.pic=");
 	
 }
 

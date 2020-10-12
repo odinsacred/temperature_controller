@@ -12,7 +12,7 @@
 #include <avr/pgmspace.h>
 #include "nextion_display.h"
 
-usart_t _usart = NULL;
+static usart_t _usart = NULL;
 void send_ffffff(void);
 void send_item(item_t *item);
 

@@ -31,7 +31,7 @@ typedef struct{
 	item_t whole;
 	item_t frac;
 	item_t conn;
-	}display_row;
+}display_row;
 
 
 

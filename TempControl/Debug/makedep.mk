@@ -8,6 +8,8 @@ events.c
 
 hw.c
 
+pc_connection.c
+
 timer.c
 
 utils.c

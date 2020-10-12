@@ -124,9 +124,9 @@ static void usart_0_init(uint32_t baud){
 	UBRR0L = LO(bauddivider);
 	UBRR0H = HI(bauddivider);
 	UCSR0A = 0;
-	UCSR0B = 1<<RXEN0|1<<TXEN0|1<<RXCIE0|1<<TXCIE0;
+	UCSR0B = (1<<RXEN0)|(1<<TXEN0)|(1<<RXCIE0)|(1<<TXCIE0);
 	/* Set frame format: 8data, 1stop bit */
-	UCSR0C = 1<<UCSZ00|1<<UCSZ01;
+	UCSR0C = (1<<URSEL0)|1<<UCSZ00|1<<UCSZ01;
 }
 
 static void usart_1_init(uint32_t baud){
@@ -135,8 +135,7 @@ static void usart_1_init(uint32_t baud){
 	UBRR1H = HI(bauddivider);
 	UCSR1A = 1<<U2X0;
 	UCSR1B = (1<<RXEN1)|(1<<TXEN1)|(1<<RXCIE1)|(1<<TXCIE1);
-	UCSR1C = (1<<URSEL1)|1<<UCSZ10|1<<UCSZ11;
-	
+	UCSR1C = (1<<URSEL1)|1<<UCSZ10|1<<UCSZ11;	
 }
 
 #undef XTAL
