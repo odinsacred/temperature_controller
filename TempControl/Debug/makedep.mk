@@ -4,11 +4,11 @@
 
 assert.c
 
+crc_modbus.c
+
 events.c
 
 hw.c
-
-pc_connection.c
 
 timer.c
 

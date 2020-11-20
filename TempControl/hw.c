@@ -13,10 +13,31 @@
 #include "hw.h"
 #include "ds18b20.h"
 #include "crc_8_dallas.h"
+#include "crc_modbus.h"
 #include "nextion_display.h"
 #include "events.h"
 #include "timer.h"
-#include "pc_connection.h"
+
+typedef struct {
+	uint8_t slave_addr;
+	uint8_t func;
+	uint16_t start_reg;
+	uint16_t reg_count;
+	uint16_t crc;
+}modbus_request_t;
+
+/*typedef struct{
+	uint8_t slave_addr;
+	uint8_t func;
+	uint8_t byte_count;
+}modbus_payload_t;
+
+typedef struct {
+	modbus_payload_t payload;
+	uint16_t crc;
+}modbus_response_t;*/
+
+modbus_request_t modbus_request = {0};
 
 static const uint16_t SENSOR_POLL_TIMEOUT = 500;
 #define NUM_OF_SENSORS 10
@@ -43,9 +64,12 @@ static void forget_selected_device(void);
 static void ignored(void);
 static void wait_for_command(void);
 static void sensors_polling(void);
+static void modbus_request_processing(void);
 static void refresh_sensor_data(ds18b20_t *sensor, display_row* row);
 static void poll_founded_sensor(void);
 static uint8_t get_frac(uint16_t *value);
+
+void swap_bytes(uint16_t* value);
 
 typedef struct {
 	uint8_t cmd;
@@ -71,7 +95,7 @@ void (* const transition_table[STATE_MAX][EVENT_MAX])(void)={
 	[STATE_RUN][EV_SEARCH_PRESSED]=ignored,
 	[STATE_RUN][EV_SAVE_PRESSED]=ignored,
 	[STATE_RUN][EV_FORGET_PRESSED]=ignored,
-	[STATE_RUN][EV_MODBUS_REQUEST_RECIEVED]=ignored,
+	[STATE_RUN][EV_MODBUS_REQUEST_RECIEVED]=modbus_request_processing,
 	[STATE_RUN][EV_ONE_WIRE_REQUEST_SENDED]=ignored,
 	[STATE_RUN][EV_ONE_WIRE_REQUEST_RECIEVED]=ignored,
 };
@@ -83,7 +107,6 @@ void hw_init(hw_device_t* device){
 	display_usart = usart_create(1,_device_ptr->display_baud);
 	pc_usart = usart_create(0,_device_ptr->modbus_baud);
 	nextion_display_init(&display_usart);
-	pc_connection_init(&pc_usart);
 	events_init(16);
 	init_display_rows();
 	timer_init();
@@ -93,9 +116,11 @@ void hw_init(hw_device_t* device){
 }
 
 void hw_run(void){
+	
 	timer_stop(sensor_poll_timer);
 	timer_restart(send_message_timer, 1000);
-	uint8_t greatings[7] = "Hello!";
+	//uint8_t greatings[7] = "Hello!";
+
 	while(1){
 		
 		_event = events_get();
@@ -105,9 +130,9 @@ void hw_run(void){
 			timer_restart(sensor_poll_timer, SENSOR_POLL_TIMEOUT);
 		}
 		
-		if(timer_poll(send_message_timer)){
-			send_message(greatings, 7);
-			timer_restart(send_message_timer, 1000);
+		if(usart_available_bytes(pc_usart)>=sizeof(modbus_request)){			
+			usart_read(pc_usart, &modbus_request, sizeof(modbus_request));
+			events_put(EV_MODBUS_REQUEST_RECIEVED);
 		}
 	}
 }
@@ -138,6 +163,54 @@ static void wait_for_command(void){
 	if(usart_available_bytes(display_usart)>=sizeof(_recieved_cmd_id)){
 		usart_read(display_usart, &_recieved_cmd_id, sizeof(_recieved_cmd_id));
 		events_put((event_t)_recieved_cmd_id.cmd);
+	}
+}
+
+union value{
+	uint32_t whole;
+	float fraction;
+	};
+
+static void modbus_request_processing(void){
+	if(_device_ptr->modbus_address != modbus_request.slave_addr){
+		return;
+	}
+	if(crc16(&modbus_request, sizeof(modbus_request)) == 0){
+		uint16_t crc = 0;
+		union value val;
+		swap_bytes(&modbus_request.reg_count);
+		swap_bytes(&modbus_request.start_reg);
+		//if(modbus_request.reg_count == 2)
+		//PORTC |= 1;
+		uint8_t response[7] ={0}; 
+		response[0] = _device_ptr->modbus_address;
+		response[1] = 0x03;
+		response[2] = modbus_request.reg_count * 2;
+		for(uint8_t i=0,j=3; i<(modbus_request.reg_count>>1); i++,j+=4){
+			if(_device_ptr->modbus_address + i < NUM_OF_SENSORS){
+				val.fraction = _sensors[modbus_request.start_reg + i].temperature >> 4;
+				val.fraction += (_sensors[modbus_request.start_reg + i].temperature & 0x000F)/16.0f;
+				response[j+1] = (uint8_t)(val.whole);
+				response[j] = (uint8_t)(val.whole>>8);
+				response[j+3] = (uint8_t)(val.whole>>16);
+				response[j+2] = (uint8_t)(val.whole>>24);
+			}else{
+				break;
+			}
+		}
+		
+		/*for(uint8_t i = 0, j=3; i<response[2]; i++,j+=2){
+			if(_device_ptr->modbus_address + i < NUM_OF_SENSORS){
+				PORTC |= 1;
+				response[j] = (uint8_t)_sensors[modbus_request.start_reg + i].temperature;
+				response[j+1] = (uint8_t)(_sensors[modbus_request.start_reg + i].temperature>>8);
+			}else{
+				break;
+			}			
+		}*/
+		crc = crc16(response,response_size);
+		usart_write(pc_usart,response, response_size);
+		usart_write(pc_usart,&crc,sizeof(uint16_t));
 	}
 }
 
@@ -211,4 +284,10 @@ static uint8_t get_frac(uint16_t *value)
 	temp*=100.0;
 	frac = (uint8_t)temp;
 	return frac;
+}
+
+void swap_bytes(uint16_t* value) {
+	uint8_t temp = (*value)>>8;
+	*value <<= 8;
+	*value |= temp;
 }

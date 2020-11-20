@@ -155,6 +155,12 @@
     <Compile Include="assert.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="crc_modbus.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="crc_modbus.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="events.c">
       <SubType>compile</SubType>
     </Compile>
@@ -165,12 +171,6 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="hw.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="pc_connection.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="pc_connection.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="timer.c">

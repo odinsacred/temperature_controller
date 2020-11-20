@@ -38,9 +38,9 @@ SUBDIRS :=
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS +=  \
 ../assert.c \
+../crc_modbus.c \
 ../events.c \
 ../hw.c \
-../pc_connection.c \
 ../timer.c \
 ../utils.c \
 ../buffer.c \
@@ -60,9 +60,9 @@ ASM_SRCS +=
 
 OBJS +=  \
 assert.o \
+crc_modbus.o \
 events.o \
 hw.o \
-pc_connection.o \
 timer.o \
 utils.o \
 buffer.o \
@@ -75,9 +75,9 @@ usart.o
 
 OBJS_AS_ARGS +=  \
 assert.o \
+crc_modbus.o \
 events.o \
 hw.o \
-pc_connection.o \
 timer.o \
 utils.o \
 buffer.o \
@@ -90,9 +90,9 @@ usart.o
 
 C_DEPS +=  \
 assert.d \
+crc_modbus.d \
 events.d \
 hw.d \
-pc_connection.d \
 timer.d \
 utils.d \
 buffer.d \
@@ -105,9 +105,9 @@ usart.d
 
 C_DEPS_AS_ARGS +=  \
 assert.d \
+crc_modbus.d \
 events.d \
 hw.d \
-pc_connection.d \
 timer.d \
 utils.d \
 buffer.d \
@@ -139,6 +139,13 @@ LINKER_SCRIPT_DEP+=
 	@echo Finished building: $<
 	
 
+./crc_modbus.o: .././crc_modbus.c
+	@echo Building file: $<
+	@echo Invoking: AVR/GNU C Compiler : 5.4.0
+	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.3.300\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega162 -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.3.300\gcc\dev\atmega162" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
+	@echo Finished building: $<
+	
+
 ./events.o: .././events.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 5.4.0
@@ -147,13 +154,6 @@ LINKER_SCRIPT_DEP+=
 	
 
 ./hw.o: .././hw.c
-	@echo Building file: $<
-	@echo Invoking: AVR/GNU C Compiler : 5.4.0
-	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.3.300\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega162 -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.3.300\gcc\dev\atmega162" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
-	@echo Finished building: $<
-	
-
-./pc_connection.o: .././pc_connection.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 5.4.0
 	$(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -DDEBUG  -I"C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.3.300\include"  -O1 -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g2 -Wall -mmcu=atmega162 -B "C:\Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.3.300\gcc\dev\atmega162" -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
