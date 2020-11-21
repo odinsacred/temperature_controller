@@ -48,7 +48,6 @@ void send_item(item_t *item){
 			usart_write(_usart, &ch, sizeof(char));
 			i++;
 		}
-		//usart_write(_usart, item->string_id, strlen(item->string_id));
 		usart_write(_usart, value, strlen(value));
 		send_ffffff();
 	}	

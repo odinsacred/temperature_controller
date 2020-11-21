@@ -11,6 +11,6 @@
 #include <stdint.h>
 
 uint16_t crc16(uint8_t* buffer, uint16_t buffer_length);
-uint16_t crc16_once(uint16_t value);
+uint16_t crc16_once(uint16_t value, uint8_t crc_hi, uint8_t crc_lo);
 
 #endif /* CRC_MODBUS_H_ */

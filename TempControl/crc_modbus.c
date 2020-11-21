@@ -83,9 +83,7 @@ uint16_t crc16(uint8_t* buffer, uint16_t buffer_length)
     return (crc_lo << 8 | crc_hi);
 }
 
-uint16_t crc16_once(uint16_t value){
-	uint8_t crc_hi = 0xFF; /* high CRC byte initialized */
-	uint8_t crc_lo = 0xFF; /* low CRC byte initialized */
+uint16_t crc16_once(uint16_t value, uint8_t crc_hi, uint8_t crc_lo){
 	unsigned int i; /* will index into CRC lookup */
 	i = crc_hi ^ value; /* calculate the CRC  */
 	crc_hi = crc_lo ^ pgm_read_byte(&(table_crc_hi[i]));

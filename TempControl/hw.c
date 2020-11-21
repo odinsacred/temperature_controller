@@ -26,17 +26,6 @@ typedef struct {
 	uint16_t crc;
 }modbus_request_t;
 
-/*typedef struct{
-	uint8_t slave_addr;
-	uint8_t func;
-	uint8_t byte_count;
-}modbus_payload_t;
-
-typedef struct {
-	modbus_payload_t payload;
-	uint16_t crc;
-}modbus_response_t;*/
-
 modbus_request_t modbus_request = {0};
 
 static const uint16_t SENSOR_POLL_TIMEOUT = 500;
@@ -85,8 +74,6 @@ void (* const transition_table[STATE_MAX][EVENT_MAX])(void)={
 	[STATE_CONFIG][EV_SAVE_PRESSED]=save_founded_device,
 	[STATE_CONFIG][EV_FORGET_PRESSED]=forget_selected_device,
 	[STATE_CONFIG][EV_MODBUS_REQUEST_RECIEVED]=ignored,
-	[STATE_CONFIG][EV_ONE_WIRE_REQUEST_SENDED]=ignored,
-	[STATE_CONFIG][EV_ONE_WIRE_REQUEST_RECIEVED]=ignored,
 	[STATE_CONFIG][EV_POLL_SENSOR]=ignored,
 	
 	[STATE_RUN][EV_NONE]=wait_for_command,
@@ -95,9 +82,7 @@ void (* const transition_table[STATE_MAX][EVENT_MAX])(void)={
 	[STATE_RUN][EV_SEARCH_PRESSED]=ignored,
 	[STATE_RUN][EV_SAVE_PRESSED]=ignored,
 	[STATE_RUN][EV_FORGET_PRESSED]=ignored,
-	[STATE_RUN][EV_MODBUS_REQUEST_RECIEVED]=modbus_request_processing,
-	[STATE_RUN][EV_ONE_WIRE_REQUEST_SENDED]=ignored,
-	[STATE_RUN][EV_ONE_WIRE_REQUEST_RECIEVED]=ignored,
+	[STATE_RUN][EV_MODBUS_REQUEST_RECIEVED]=modbus_request_processing
 };
 
 
@@ -119,8 +104,6 @@ void hw_run(void){
 	
 	timer_stop(sensor_poll_timer);
 	timer_restart(send_message_timer, 1000);
-	//uint8_t greatings[7] = "Hello!";
-
 	while(1){
 		
 		_event = events_get();
@@ -166,10 +149,11 @@ static void wait_for_command(void){
 	}
 }
 
-union value{
+union value{	
+	uint8_t bytes[4];
 	uint32_t whole;
 	float fraction;
-	};
+};
 
 static void modbus_request_processing(void){
 	if(_device_ptr->modbus_address != modbus_request.slave_addr){
@@ -180,36 +164,23 @@ static void modbus_request_processing(void){
 		union value val;
 		swap_bytes(&modbus_request.reg_count);
 		swap_bytes(&modbus_request.start_reg);
-		//if(modbus_request.reg_count == 2)
-		//PORTC |= 1;
-		uint8_t response[7] ={0}; 
+		uint8_t response[3] ={0}; 
 		response[0] = _device_ptr->modbus_address;
 		response[1] = 0x03;
 		response[2] = modbus_request.reg_count * 2;
-		for(uint8_t i=0,j=3; i<(modbus_request.reg_count>>1); i++,j+=4){
-			if(_device_ptr->modbus_address + i < NUM_OF_SENSORS){
+		crc = crc16_once(response[0],0xFF,0xFF);
+		crc = crc16_once(response[1],crc,crc>>8);
+		crc = crc16_once(response[2],crc,crc>>8);
+		usart_write(pc_usart,response, sizeof(response));
+		for(uint8_t i=0; i<(modbus_request.reg_count>>1); i++){
 				val.fraction = _sensors[modbus_request.start_reg + i].temperature >> 4;
-				val.fraction += (_sensors[modbus_request.start_reg + i].temperature & 0x000F)/16.0f;
-				response[j+1] = (uint8_t)(val.whole);
-				response[j] = (uint8_t)(val.whole>>8);
-				response[j+3] = (uint8_t)(val.whole>>16);
-				response[j+2] = (uint8_t)(val.whole>>24);
-			}else{
-				break;
-			}
+				val.fraction += (_sensors[modbus_request.start_reg + i].temperature & 0x000F)/16.0f;				
+				crc = crc16_once(val.bytes[0],crc,crc>>8);
+				crc = crc16_once(val.bytes[1],crc,crc>>8);
+				crc = crc16_once(val.bytes[2],crc,crc>>8);
+				crc = crc16_once(val.bytes[3],crc,crc>>8);
+				usart_write(pc_usart,&val.whole, sizeof(val.whole));		
 		}
-		
-		/*for(uint8_t i = 0, j=3; i<response[2]; i++,j+=2){
-			if(_device_ptr->modbus_address + i < NUM_OF_SENSORS){
-				PORTC |= 1;
-				response[j] = (uint8_t)_sensors[modbus_request.start_reg + i].temperature;
-				response[j+1] = (uint8_t)(_sensors[modbus_request.start_reg + i].temperature>>8);
-			}else{
-				break;
-			}			
-		}*/
-		crc = crc16(response,response_size);
-		usart_write(pc_usart,response, response_size);
 		usart_write(pc_usart,&crc,sizeof(uint16_t));
 	}
 }
