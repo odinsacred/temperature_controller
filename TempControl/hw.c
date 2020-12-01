@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <avr/pgmspace.h>
+#include <avr/eeprom.h>
 #include "hw.h"
 #include "ds18b20.h"
 #include "crc_8_dallas.h"
@@ -49,6 +50,7 @@ static void device_run(void);
 static void device_config(void);
 static void search_device(void);
 static void save_founded_device(void);
+static void load_device_roms(void);
 static void forget_selected_device(void);
 static void ignored(void);
 static void wait_for_command(void);
@@ -94,10 +96,12 @@ void hw_init(hw_device_t* device){
 	nextion_display_init(&display_usart);
 	events_init(16);
 	init_display_rows();
-	timer_init();
+	timer_init();	
 	sensor_poll_timer = timer_create();
 	send_message_timer = timer_create();
 	DDRC = 0b00001111;
+	
+	load_device_roms();
 }
 
 void hw_run(void){
@@ -131,7 +135,34 @@ static void device_config(void){
 }
 
 static void save_founded_device(void){
-	
+	uint8_t counter = 0;
+	uint16_t addr=1;
+	while(!eeprom_is_ready());		
+	for(uint8_t i=0; i<NUM_OF_SENSORS; i++,addr+=8){
+		if(_sensors[i].status == DEVICE_FOUND){
+			eeprom_write_block((void*)&_sensors[i].rom_code,(void*)addr,sizeof(uint64_t));
+			counter++;			
+		}
+	}
+	if(counter>0){
+		eeprom_write_byte(0,counter);
+		PORTC |=1;
+	}
+}
+
+static void load_device_roms(void){
+	uint8_t counter = 0;
+	uint16_t addr=1;
+	while(!eeprom_is_ready());	
+	counter = eeprom_read_byte(0);
+	if(counter != 0xFF){
+		PORTC |=1;
+		for(uint8_t i=0; i<counter; i++,addr+=8){
+			eeprom_read_block((void*)&_sensors[i].rom_code,(const void*)addr,sizeof(uint64_t));
+			_sensors[i].status = DEVICE_FOUND;
+		}
+		poll_founded_sensor();
+	}
 }
 
 static void forget_selected_device(void){
